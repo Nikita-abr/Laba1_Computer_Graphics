@@ -1,3 +1,4 @@
+
 #include <QApplication>
 #include <QWidget>
 #include <QLineEdit>
@@ -61,7 +62,8 @@ class Window : public QWidget {
         return box;
     }
 
-    void setRGB(int R, int G, int B) {
+    void showColor(int R, int G, int B,
+                   bool updateCMYK, bool updateHSV) {
         R = std::clamp(R, 0, 255);
         G = std::clamp(G, 0, 255);
         B = std::clamp(B, 0, 255);
@@ -102,27 +104,31 @@ class Window : public QWidget {
         g->setText(QString::number(G));
         b->setText(QString::number(B));
 
-        c->setText(QString::number(C * 100, 'f', 1));
-        m->setText(QString::number(M * 100, 'f', 1));
-        y->setText(QString::number(Y * 100, 'f', 1));
-        k->setText(QString::number(K * 100, 'f', 1));
-
-        h->setText(QString::number(H, 'f', 1));
-        s->setText(QString::number(S * 100, 'f', 1));
-        v->setText(QString::number(V * 100, 'f', 1));
-
         sr->setValue(R);
         sg->setValue(G);
         sb->setValue(B);
 
-        sc->setValue(qRound(C * 100));
-        sm->setValue(qRound(M * 100));
-        sy->setValue(qRound(Y * 100));
-        sk->setValue(qRound(K * 100));
+        if (updateCMYK) {
+            c->setText(QString::number(C * 100, 'f', 1));
+            m->setText(QString::number(M * 100, 'f', 1));
+            y->setText(QString::number(Y * 100, 'f', 1));
+            k->setText(QString::number(K * 100, 'f', 1));
 
-        sh->setValue(qRound(H));
-        ss->setValue(qRound(S * 100));
-        sv->setValue(qRound(V * 100));
+            sc->setValue(qRound(C * 100));
+            sm->setValue(qRound(M * 100));
+            sy->setValue(qRound(Y * 100));
+            sk->setValue(qRound(K * 100));
+        }
+
+        if (updateHSV) {
+            h->setText(QString::number(H, 'f', 1));
+            s->setText(QString::number(S * 100, 'f', 1));
+            v->setText(QString::number(V * 100, 'f', 1));
+
+            sh->setValue(qRound(H));
+            ss->setValue(qRound(S * 100));
+            sv->setValue(qRound(V * 100));
+        }
 
         preview->setStyleSheet(
             QString("background-color: rgb(%1,%2,%3);"
@@ -132,17 +138,35 @@ class Window : public QWidget {
         updating = false;
     }
 
+    void setRGB(int R, int G, int B) {
+        showColor(R, G, B, true, true);
+    }
+
     void fromCMYK() {
         double C = std::clamp(c->text().toDouble(), 0.0, 100.0) / 100;
         double M = std::clamp(m->text().toDouble(), 0.0, 100.0) / 100;
         double Y = std::clamp(y->text().toDouble(), 0.0, 100.0) / 100;
         double K = std::clamp(k->text().toDouble(), 0.0, 100.0) / 100;
 
-        setRGB(
-            qRound(255 * (1 - C) * (1 - K)),
-            qRound(255 * (1 - M) * (1 - K)),
-            qRound(255 * (1 - Y) * (1 - K))
-        );
+        int R = qRound(255 * (1 - C) * (1 - K));
+        int G = qRound(255 * (1 - M) * (1 - K));
+        int B = qRound(255 * (1 - Y) * (1 - K));
+
+        showColor(R, G, B, false, true);
+
+        updating = true;
+
+        c->setText(QString::number(C * 100, 'f', 1));
+        m->setText(QString::number(M * 100, 'f', 1));
+        y->setText(QString::number(Y * 100, 'f', 1));
+        k->setText(QString::number(K * 100, 'f', 1));
+
+        sc->setValue(qRound(C * 100));
+        sm->setValue(qRound(M * 100));
+        sy->setValue(qRound(Y * 100));
+        sk->setValue(qRound(K * 100));
+
+        updating = false;
     }
 
     void fromHSV() {
@@ -169,11 +193,23 @@ class Window : public QWidget {
         else
             R = C, B = X;
 
-        setRGB(
-            qRound((R + M) * 255),
-            qRound((G + M) * 255),
-            qRound((B + M) * 255)
-        );
+        int red = qRound((R + M) * 255);
+        int green = qRound((G + M) * 255);
+        int blue = qRound((B + M) * 255);
+
+        showColor(red, green, blue, true, false);
+
+        updating = true;
+
+        h->setText(QString::number(H, 'f', 1));
+        s->setText(QString::number(S * 100, 'f', 1));
+        v->setText(QString::number(V * 100, 'f', 1));
+
+        sh->setValue(qRound(H));
+        ss->setValue(qRound(S * 100));
+        sv->setValue(qRound(V * 100));
+
+        updating = false;
     }
 
 public:
@@ -307,6 +343,7 @@ public:
         });
 
         main->addStretch();
+
         setRGB(123, 44, 191);
     }
 };
